@@ -1,12 +1,42 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
+import type { User } from "@supabase/supabase-js";
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  useEffect(() => {
+    const supabase = createClient();
+
+    // Get initial user
+    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
+  }
+
+  // Hide navbar entirely on login page
+  if (pathname === "/login") return null;
 
   const navItems = [
     {
@@ -37,6 +67,15 @@ export default function Navbar() {
       ),
     },
     {
+      name: "Focus",
+      href: "/pomodoro",
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+    },
+    {
       name: "About",
       href: "/about",
       icon: (
@@ -55,6 +94,12 @@ export default function Navbar() {
       ),
     },
   ];
+
+  const userInitial = user?.user_metadata?.full_name?.[0]?.toUpperCase()
+    ?? user?.email?.[0]?.toUpperCase()
+    ?? "?";
+  const userName = user?.user_metadata?.full_name ?? user?.email ?? "";
+  const avatarUrl = user?.user_metadata?.avatar_url;
 
   return (
     <header className="sticky top-0 z-50 w-full glass border-b border-zinc-800/50 backdrop-blur-md">
@@ -100,12 +145,72 @@ export default function Navbar() {
             })}
           </nav>
 
+          {/* Right side — user avatar + logout OR login button */}
+          <div className="hidden md:flex items-center gap-3">
+            {user ? (
+              <div className="flex items-center gap-3">
+                {/* Avatar */}
+                <div className="flex items-center gap-2">
+                  {avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={avatarUrl}
+                      alt={userName}
+                      className="w-8 h-8 rounded-full ring-2 ring-violet-500/40"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-violet-600 to-fuchsia-600 flex items-center justify-center text-white text-sm font-bold ring-2 ring-violet-500/40">
+                      {userInitial}
+                    </div>
+                  )}
+                  <span className="text-sm text-zinc-300 font-medium max-w-[120px] truncate">
+                    {userName.split(" ")[0]}
+                  </span>
+                </div>
+                {/* Logout */}
+                <button
+                  id="logout-btn"
+                  onClick={handleLogout}
+                  disabled={loggingOut}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-400 hover:text-red-400 hover:bg-red-500/10 border border-zinc-700/50 hover:border-red-500/30 transition-all duration-200"
+                >
+                  {loggingOut ? (
+                    <span className="w-3.5 h-3.5 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
+                  ) : (
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                  )}
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <Link
+                href="/login"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-violet-600 hover:bg-violet-500 text-white transition-all duration-200 shadow-lg shadow-violet-500/20"
+              >
+                Sign In
+              </Link>
+            )}
+          </div>
+
           {/* Mobile Menu Button */}
-          <div className="md:hidden flex items-center">
+          <div className="md:hidden flex items-center gap-2">
+            {/* Mobile avatar indicator */}
+            {user && (
+              avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={avatarUrl} alt={userName} className="w-7 h-7 rounded-full ring-2 ring-violet-500/40" />
+              ) : (
+                <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-violet-600 to-fuchsia-600 flex items-center justify-center text-white text-xs font-bold">
+                  {userInitial}
+                </div>
+              )
+            )}
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="inline-flex items-center justify-center p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800/50 focus:outline-none"
-              aria-expanded="false"
+              aria-expanded={isOpen}
             >
               <span className="sr-only">Open main menu</span>
               {isOpen ? (
@@ -145,6 +250,29 @@ export default function Navbar() {
               </Link>
             );
           })}
+
+          {/* Mobile logout/login */}
+          <div className="pt-2 border-t border-zinc-800">
+            {user ? (
+              <div className="flex items-center justify-between px-4 py-2">
+                <span className="text-sm text-zinc-400">{userName}</span>
+                <button
+                  onClick={() => { setIsOpen(false); handleLogout(); }}
+                  className="text-sm text-red-400 hover:text-red-300 font-medium"
+                >
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <Link
+                href="/login"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center justify-center gap-2 mx-4 px-4 py-2.5 rounded-lg text-sm font-medium bg-violet-600 hover:bg-violet-500 text-white transition-all"
+              >
+                Sign In
+              </Link>
+            )}
+          </div>
         </div>
       )}
     </header>
