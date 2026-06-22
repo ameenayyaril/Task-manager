@@ -44,7 +44,7 @@ export default function RootLayout({
                 <span className="font-semibold text-transparent bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text">
                   Ameen Ali
                 </span>
-                <span>🚀</span>
+               
               </p>
             </div>
           </footer>

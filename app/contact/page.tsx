@@ -34,19 +34,52 @@ export default function Contact() {
         
         {/* Left Column: Contact Cards (2 cols) */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Card 1: Developer */}
-          <div className="glass p-6 rounded-2xl flex items-start gap-4 hover:border-violet-500/40 hover:-translate-y-0.5 transition-all duration-300">
-            <div className="w-10 h-10 rounded-xl bg-violet-500/10 text-violet-400 flex items-center justify-center shrink-0">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-              </svg>
-            </div>
-            <div>
-              <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Developer</h3>
-              <p className="text-lg font-bold text-white mt-1">Ameen Ali</p>
-              <p className="text-xs text-zinc-400 mt-1">Engineering student & developer.</p>
-            </div>
-          </div>
+         {/* Card 1: Developer */}
+<div className="glass p-6 rounded-2xl flex items-start gap-4 hover:border-violet-500/40 hover:-translate-y-0.5 transition-all duration-300">
+  <div className="w-10 h-10 rounded-xl bg-violet-500/10 text-violet-400 flex items-center justify-center shrink-0">
+    <svg
+      className="w-5 h-5"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="2"
+        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+      />
+    </svg>
+  </div>
+
+  <div>
+    <h3 className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
+      Developer
+    </h3>
+
+    <p className="text-xl font-bold text-white mt-1">
+      Ameen Ali
+    </p>
+
+    <p className="text-sm text-violet-300 mt-1 font-semibold">
+      Artificial Intelligence & Data Science Engineer
+    </p>
+
+    <div className="flex flex-wrap gap-2 mt-3">
+      <span className="px-3 py-1 rounded-full bg-violet-500/10 text-violet-300 text-xs">
+        AI/ML Developer
+      </span>
+
+      <span className="px-3 py-1 rounded-full bg-fuchsia-500/10 text-fuchsia-300 text-xs">
+        Full Stack Developer
+      </span>
+
+      <span className="px-3 py-1 rounded-full bg-blue-500/10 text-blue-300 text-xs">
+        Aspiring AI Researcher
+      </span>
+    </div>
+  </div>
+</div>
 
           {/* Card 2: Email */}
           <a
