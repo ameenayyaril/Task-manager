@@ -22,8 +22,12 @@ function LoginContent() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
+        redirectTo:
+        process.env.NODE_ENV === "development"
+        ? "http://localhost:3000/auth/callback"
+        : "https://task-manager-five-chi-29.vercel.app/auth/callback",
+        },
+        
     });
     if (error) {
       setError(error.message);
