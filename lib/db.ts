@@ -1,5 +1,4 @@
-import { supabase } from "./supabase";
-
+import { supabase } from "./supabase/client";
 export type SubTask = {
   id: string;
   text: string;
