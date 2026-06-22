@@ -20,37 +20,41 @@ export type Task = {
   createdAt?: string;
 };
 
-// Helper: Retrieve or generate unique anonymous user session ID
-export const getUserId = (): string => {
-  if (typeof window === "undefined") return "server_session";
-  let userId = localStorage.getItem("taskflow_user_id");
-  if (!userId) {
-    userId = `user_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
-    localStorage.setItem("taskflow_user_id", userId);
-  }
-  return userId;
+// Get currently signed-in Google user ID
+export const getUserId = async (): Promise<string> => {
+  if (!supabase) return "anonymous";
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  return user?.id || "anonymous";
 };
 
-// Helper: Read local storage cache
+// Local cache
 const getLocalTasks = (): Task[] => {
   if (typeof window === "undefined") return [];
+
   const saved = localStorage.getItem("tasks");
+
   if (!saved) return [];
+
   try {
-    const parsed = JSON.parse(saved);
-    return Array.isArray(parsed) ? parsed : [];
+    return JSON.parse(saved);
   } catch {
     return [];
   }
 };
 
-// Operation 1: Fetch all tasks (syncs cloud with cache)
+// Fetch tasks
 export const fetchTasksFromDb = async (): Promise<Task[]> => {
   const cached = getLocalTasks();
+
   if (!supabase) return cached;
 
-  const userId = getUserId();
   try {
+    const userId = await getUserId();
+
     const { data, error } = await supabase
       .from("tasks")
       .select("*")
@@ -58,9 +62,8 @@ export const fetchTasksFromDb = async (): Promise<Task[]> => {
 
     if (error) throw error;
 
-    if (data) {
-      // Map database snake_case fields back to frontend camelCase Task type
-      const mapped: Task[] = data.map((t: any) => ({
+    const tasks: Task[] =
+      data?.map((t: any) => ({
         id: t.id,
         text: t.text,
         priority: t.priority,
@@ -68,35 +71,36 @@ export const fetchTasksFromDb = async (): Promise<Task[]> => {
         category: t.category,
         dueDate: t.due_date || "",
         notes: t.notes || "",
-        subtasks: Array.isArray(t.subtasks) ? t.subtasks : [],
+        subtasks: t.subtasks || [],
         estimatedFocus: t.estimated_focus || 1,
         completedPomodoros: t.completed_pomodoros || 0,
         createdAt: t.created_at,
-      }));
+      })) || [];
 
-      // Cache locally
-      localStorage.setItem("tasks", JSON.stringify(mapped));
-      return mapped;
-    }
+    localStorage.setItem("tasks", JSON.stringify(tasks));
+
+    return tasks;
   } catch (err) {
-    console.warn("TaskFlow database offline or fetch failed. Using local storage.", err);
+    console.warn("Fetch failed. Using local cache.", err);
+    return cached;
   }
-  return cached;
 };
 
-// Operation 2: Save or Update a single task
+// Save one task
 export const saveTaskToDb = async (task: Task): Promise<void> => {
   const cached = getLocalTasks();
-  const exists = cached.some((t) => t.id === task.id);
-  const updated = exists
+
+  const updated = cached.some((t) => t.id === task.id)
     ? cached.map((t) => (t.id === task.id ? task : t))
     : [...cached, task];
 
   localStorage.setItem("tasks", JSON.stringify(updated));
 
   if (!supabase) return;
-  const userId = getUserId();
+
   try {
+    const userId = await getUserId();
+
     const { error } = await supabase.from("tasks").upsert({
       id: task.id,
       user_id: userId,
@@ -111,19 +115,24 @@ export const saveTaskToDb = async (task: Task): Promise<void> => {
       completed_pomodoros: task.completedPomodoros || 0,
       created_at: task.createdAt || new Date().toISOString(),
     });
+
     if (error) throw error;
   } catch (err) {
-    console.warn("Supabase save task failed. Local storage backup updated.", err);
+    console.warn("Save failed.", err);
   }
 };
 
-// Operation 3: Save / Batch Sync all tasks (e.g. clear, toggle, or bulk edit notes)
-export const saveAllTasksToDb = async (allTasks: Task[]): Promise<void> => {
+// Save all tasks
+export const saveAllTasksToDb = async (
+  allTasks: Task[]
+): Promise<void> => {
   localStorage.setItem("tasks", JSON.stringify(allTasks));
 
   if (!supabase) return;
-  const userId = getUserId();
+
   try {
+    const userId = await getUserId();
+
     const rows = allTasks.map((task) => ({
       id: task.id,
       user_id: userId,
@@ -140,37 +149,54 @@ export const saveAllTasksToDb = async (allTasks: Task[]): Promise<void> => {
     }));
 
     const { error } = await supabase.from("tasks").upsert(rows);
+
     if (error) throw error;
   } catch (err) {
-    console.warn("Supabase batch sync failed. Local storage backup updated.", err);
+    console.warn("Batch save failed.", err);
   }
 };
 
-// Operation 4: Delete task
-export const deleteTaskFromDb = async (taskId: string): Promise<void> => {
+// Delete one task
+export const deleteTaskFromDb = async (
+  taskId: string
+): Promise<void> => {
   const cached = getLocalTasks();
-  const updated = cached.filter((t) => t.id !== taskId);
-  localStorage.setItem("tasks", JSON.stringify(updated));
+
+  localStorage.setItem(
+    "tasks",
+    JSON.stringify(cached.filter((t) => t.id !== taskId))
+  );
 
   if (!supabase) return;
+
   try {
-    const { error } = await supabase.from("tasks").delete().eq("id", taskId);
+    const { error } = await supabase
+      .from("tasks")
+      .delete()
+      .eq("id", taskId);
+
     if (error) throw error;
   } catch (err) {
-    console.warn("Supabase delete task failed. Local storage backup updated.", err);
+    console.warn("Delete failed.", err);
   }
 };
 
-// Operation 5: Clear all user tasks
+// Clear all tasks
 export const clearAllTasksFromDb = async (): Promise<void> => {
   localStorage.setItem("tasks", JSON.stringify([]));
 
   if (!supabase) return;
-  const userId = getUserId();
+
   try {
-    const { error } = await supabase.from("tasks").delete().eq("user_id", userId);
+    const userId = await getUserId();
+
+    const { error } = await supabase
+      .from("tasks")
+      .delete()
+      .eq("user_id", userId);
+
     if (error) throw error;
   } catch (err) {
-    console.warn("Supabase clear tasks failed. Local storage backup updated.", err);
+    console.warn("Clear failed.", err);
   }
 };
