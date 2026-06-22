@@ -20,15 +20,15 @@ export type Task = {
   createdAt?: string;
 };
 
-// Get currently signed-in Google user ID
-export const getUserId = async (): Promise<string> => {
-  if (!supabase) return "anonymous";
+// Get logged-in user ID
+export const getUserId = async (): Promise<string | null> => {
+  if (!supabase) return null;
 
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  return user?.id || "anonymous";
+  return user?.id ?? null;
 };
 
 // Local cache
@@ -55,10 +55,13 @@ export const fetchTasksFromDb = async (): Promise<Task[]> => {
   try {
     const userId = await getUserId();
 
+    if (!userId) return cached;
+
     const { data, error } = await supabase
       .from("tasks")
       .select("*")
-      .eq("user_id", userId);
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
 
     if (error) throw error;
 
@@ -101,6 +104,8 @@ export const saveTaskToDb = async (task: Task): Promise<void> => {
   try {
     const userId = await getUserId();
 
+    if (!userId) return;
+
     const { error } = await supabase.from("tasks").upsert({
       id: task.id,
       user_id: userId,
@@ -132,6 +137,8 @@ export const saveAllTasksToDb = async (
 
   try {
     const userId = await getUserId();
+
+    if (!userId) return;
 
     const rows = allTasks.map((task) => ({
       id: task.id,
@@ -189,6 +196,8 @@ export const clearAllTasksFromDb = async (): Promise<void> => {
 
   try {
     const userId = await getUserId();
+
+    if (!userId) return;
 
     const { error } = await supabase
       .from("tasks")
